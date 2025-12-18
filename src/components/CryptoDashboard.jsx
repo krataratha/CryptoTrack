@@ -339,7 +339,7 @@ export default function CryptoDashboard() {
                       Menu
                     </button>
                     {showUserMenu && (
-                      <div className="absolute right-0 mt-2 w-44 rounded-lg border border-obsidian-800 bg-obsidian-900/90 shadow-obsidian backdrop-blur z-[9999]">
+                      <div className="absolute right-0 mt-2 w-44 rounded-lg border border-obsidian-800 bg-obsidian-900/90 shadow-obsidian backdrop-blur z-9999">
                         <button
                           onClick={() => {
                             setActiveTab('Profile');

@@ -38,20 +38,111 @@
   html, body, #root {
     height: 100%;
   }
+  
+  /* Light Mode (default when dark class is removed) */
+  body {
+    @apply bg-white text-gray-900 antialiased;
+  }
+  
+  html:not(.dark) input,
+  html:not(.dark) select,
+  html:not(.dark) textarea {
+    @apply bg-gray-100 border-gray-300 text-gray-900;
+  }
+  
+  html:not(.dark) input::placeholder,
+  html:not(.dark) textarea::placeholder {
+    @apply text-gray-400;
+  }
+  
+  html:not(.dark) button,
+  html:not(.dark) a {
+    @apply text-gray-900;
+  }
+  
+  /* Dark Mode */
+  html.dark body {
+    @apply bg-obsidian-950 text-neutral-100;
+  }
+  
   html.dark {
     color-scheme: dark;
-  }
-  body {
-    @apply bg-obsidian-950 text-neutral-100 antialiased;
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-xl bg-obsidian-900/70 backdrop-blur border border-obsidian-800 shadow-obsidian;
+    @apply rounded-xl bg-obsidian-900/70 backdrop-blur border border-obsidian-800 shadow-obsidian text-neutral-100;
   }
+  
+  /* Light mode card */
+  html:not(.dark) .card {
+    @apply bg-white/95 border-gray-200 text-gray-900 shadow-md;
+  }
+  
   .muted {
     @apply text-neutral-400;
+  }
+  
+  html:not(.dark) .muted {
+    @apply text-gray-500;
+  }
+  
+  /* Input styles for both modes */
+  html:not(.dark) input,
+  html:not(.dark) select,
+  html:not(.dark) textarea {
+    @apply bg-gray-50 border border-gray-300 text-gray-900;
+  }
+  
+  html:not(.dark) input:focus,
+  html:not(.dark) select:focus,
+  html:not(.dark) textarea:focus {
+    @apply outline-none border-blue-500 ring-2 ring-blue-200;
+  }
+  
+  html.dark input,
+  html.dark select,
+  html.dark textarea {
+    @apply text-neutral-100;
+  }
+  
+  /* Headings */
+  html:not(.dark) h1,
+  html:not(.dark) h2,
+  html:not(.dark) h3,
+  html:not(.dark) h4,
+  html:not(.dark) h5,
+  html:not(.dark) h6 {
+    @apply text-gray-900;
+  }
+  
+  /* Compact view */
+  html.compact {
+    font-size: 14px;
+  }
+  
+  html.compact .card {
+    @apply p-3;
+  }
+  
+  /* Color schemes */
+  html[data-theme="purple"] {
+    --color-accent-400: #c084fc;
+    --color-accent-500: #a855f7;
+    --color-accent-600: #9333ea;
+  }
+  
+  html[data-theme="green"] {
+    --color-accent-400: #4ade80;
+    --color-accent-500: #22c55e;
+    --color-accent-600: #16a34a;
+  }
+  
+  html[data-theme="orange"] {
+    --color-accent-400: #fb923c;
+    --color-accent-500: #f97316;
+    --color-accent-600: #ea580c;
   }
 }
 

@@ -53,7 +53,8 @@ export function suggestUsernames(base) {
 
 export async function signupUser(username, password) {
   const users = loadUsers();
-  const name = String(username).toLowerCase();
+  const name = String(username).trim().toLowerCase();
+  const pass = String(password).trim();
   if (users[name]) {
     const suggestions = suggestUsernames(name);
     const err = new Error('USERNAME_TAKEN');
@@ -61,23 +62,68 @@ export async function signupUser(username, password) {
     throw err;
   }
   const salt = bcrypt.genSaltSync(10);
-  const hash = bcrypt.hashSync(password, salt);
-  const profile = { username: name, passwordHash: hash, createdAt: Date.now() };
+  const hash = bcrypt.hashSync(pass, salt);
+  const profile = { username: name, passwordHash: hash, createdAt: Date.now(), profilePhoto: null };
   users[name] = profile;
   saveUsers(users);
-  const sessionUser = { username: name };
+  const sessionUser = { username: name, profilePhoto: null };
   setSessionUser(sessionUser);
   return sessionUser;
 }
 
 export async function loginUser(username, password) {
   const users = loadUsers();
-  const name = String(username).toLowerCase();
+  const name = String(username).trim().toLowerCase();
+  const pass = String(password).trim();
   const profile = users[name];
   if (!profile) throw new Error('INVALID_CREDENTIALS');
-  const ok = bcrypt.compareSync(password, profile.passwordHash);
+  const ok = bcrypt.compareSync(pass, profile.passwordHash);
   if (!ok) throw new Error('INVALID_CREDENTIALS');
-  const sessionUser = { username: name };
+  const sessionUser = { username: name, profilePhoto: profile.profilePhoto };
   setSessionUser(sessionUser);
   return sessionUser;
+}
+
+export function getUserProfile(username) {
+  const users = loadUsers();
+  const name = String(username).toLowerCase();
+  const profile = users[name];
+  if (!profile) return null;
+  return {
+    username: name,
+    profilePhoto: profile.profilePhoto || null,
+    createdAt: profile.createdAt,
+  };
+}
+
+export function updateUserProfile(username, updates) {
+  const users = loadUsers();
+  const name = String(username).toLowerCase();
+  const profile = users[name];
+  if (!profile) throw new Error('USER_NOT_FOUND');
+  
+  if (updates.profilePhoto !== undefined) {
+    profile.profilePhoto = updates.profilePhoto;
+  }
+  
+  users[name] = profile;
+  saveUsers(users);
+  
+  // Update session if it exists
+  const session = getSessionUser();
+  if (session && session.username === name) {
+    setSessionUser({ ...session, profilePhoto: profile.profilePhoto });
+  }
+  
+  return { username: name, profilePhoto: profile.profilePhoto };
+}
+
+export function debugAuth() {
+  const users = loadUsers();
+  const usernames = Object.keys(users);
+  console.log('Stored users:', usernames);
+  usernames.forEach(username => {
+    console.log(`- ${username}: passwordHash exists = ${!!users[username].passwordHash}`);
+  });
+  return { usernames, users };
 }

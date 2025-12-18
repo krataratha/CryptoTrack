@@ -1,6 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Moon, Sun, Bell, Lock, Eye, Zap, Sliders, HelpCircle } from 'lucide-react'
+import { Moon, Bell, Lock, Zap, Sliders, HelpCircle, Download, Trash2, Mail, MessageSquare, Bug } from 'lucide-react'
+import { useSettings } from '../context/SettingsContext'
+import { useAuth } from '../context/AuthContext'
+
+const SUPPORT_EMAIL = 'kratarathtatran@icloud.com'
+const SUPPORT_PHONE = '+1 (555) 123-4567'
+const SUPPORT_HOURS = 'Mon-Fri, 9AM-6PM EST'
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -12,70 +18,93 @@ const containerVariants = {
 
 const itemVariants = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }
 
-const STORAGE_KEY = 'ct_settings_v1'
-
-const defaultSettings = {
-  'Display & Theme': {
-    'Dark Mode': true,
-    'Compact View': false,
-    'Show Price Decimals': true,
-    'Color Scheme': 'Cyan',
-  },
-  'Data & Updates': {
-    'Live Price Updates': true,
-    'AI Insights': true,
-    'Auto-Refresh': true,
-    'Update Interval': 'Every 3 seconds',
-  },
-  Notifications: {
-    'Push Notifications': true,
-    'Email Alerts': false,
-    'Sound Alerts': true,
-    'Notification Volume': 75,
-  },
-  'Privacy & Security': {
-    'Encrypt Sensitive Data': true,
-    'Hide Balances': false,
-    'API Key Protection': true,
-    'Session Timeout': '30 minutes',
-  },
-  Advanced: {
-    'Developer Mode': false,
-    'Beta Features': false,
-    'Performance Mode': false,
-  },
-}
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return defaultSettings
-    const parsed = JSON.parse(raw)
-    return { ...defaultSettings, ...parsed }
-  } catch {
-    return defaultSettings
-  }
-}
-
-function saveSettings(settings) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-}
-
 export default function SettingsPage() {
-  const [settingsState, setSettingsState] = useState(() => loadSettings())
+  const { settings, updateSetting, resetSettings } = useSettings()
+  const { user, logout } = useAuth()
+  const [notification, setNotification] = useState('')
 
-  useEffect(() => {
-    saveSettings(settingsState)
-  }, [settingsState])
+  function showNotification(message) {
+    setNotification(message)
+    setTimeout(() => setNotification(''), 3000)
+  }
 
-  useEffect(() => {
-    const dark = settingsState['Display & Theme']['Dark Mode']
-    if (dark) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
+  function handleExportData() {
+    try {
+      const data = {
+        settings,
+        userData: user,
+        exportDate: new Date().toISOString(),
+      }
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `cryptotrack-data-${Date.now()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      showNotification('✅ Data exported successfully!')
+    } catch (err) {
+      showNotification('❌ Failed to export data')
     }
-  }, [settingsState])
+  }
+
+  function handleClearCache() {
+    if (confirm('Clear cache and cookies? This will refresh the page.')) {
+      // Clear all localStorage except user auth
+      const authData = localStorage.getItem('ct_session_v1')
+      const usersData = localStorage.getItem('ct_users_v1')
+      localStorage.clear()
+      if (authData) localStorage.setItem('ct_session_v1', authData)
+      if (usersData) localStorage.setItem('ct_users_v1', usersData)
+      showNotification('✅ Cache cleared!')
+      setTimeout(() => window.location.reload(), 1500)
+    }
+  }
+
+  function handleResetSettings() {
+    if (confirm('Reset all settings to default values?')) {
+      resetSettings()
+      showNotification('✅ Settings reset to default!')
+    }
+  }
+
+  function handleDeleteAccount() {
+    if (!user) {
+      showNotification('❌ No user logged in')
+      return
+    }
+    const confirmation = prompt(`Type "${user.username}" to confirm account deletion:`)
+    if (confirmation === user.username) {
+      // Delete user data
+      const users = JSON.parse(localStorage.getItem('ct_users_v1') || '{}')
+      delete users[user.username]
+      localStorage.setItem('ct_users_v1', JSON.stringify(users))
+      // Delete transactions
+      localStorage.removeItem(`ct_tx_v1:${user.username}`)
+      logout()
+      showNotification('✅ Account deleted')
+      setTimeout(() => window.location.reload(), 1500)
+    } else if (confirmation !== null) {
+      showNotification('❌ Username did not match')
+    }
+  }
+
+  function handleContactSupport() {
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=CryptoTrack Support Request&body=Hello Support Team,%0A%0AI need help with:%0A%0A(Please describe your issue)%0A%0AUser: ${user?.username || 'Not logged in'}%0ADate: ${new Date().toISOString()}`
+    showNotification('📧 Opening email client...')
+  }
+
+  function handleReportBug() {
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=CryptoTrack Bug Report&body=Bug Description:%0A%0A(Please describe the bug)%0A%0ASteps to Reproduce:%0A1.%0A2.%0A3.%0A%0AExpected Behavior:%0A(What should happen)%0A%0AActual Behavior:%0A(What actually happens)%0A%0AUser: ${user?.username || 'Not logged in'}%0ADate: ${new Date().toISOString()}`
+    showNotification('📧 Opening email client...')
+  }
+
+  function copySupportEmail() {
+    navigator.clipboard.writeText(SUPPORT_EMAIL)
+    showNotification('✅ Email address copied to clipboard!')
+  }
 
   const settingsSections = useMemo(() => [
     {
@@ -227,22 +256,17 @@ export default function SettingsPage() {
         },
       ],
     },
-  ], [settingsState])
+  ], [])
 
   function getValue(path) {
     const [section, key] = path
-    return settingsState?.[section]?.[key]
+    return settings?.[section]?.[key]
   }
 
   function updateValue(path, value) {
     const [section, key] = path
-    setSettingsState((prev) => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [key]: value,
-      },
-    }))
+    updateSetting(section, key, value)
+    showNotification('✅ Setting updated!')
   }
 
   function renderControl(setting) {
@@ -298,6 +322,18 @@ export default function SettingsPage() {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
+      {/* Notification Toast */}
+      {notification && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="fixed top-4 right-4 z-50 px-4 py-3 rounded-lg bg-obsidian-900 border border-accent-600/30 shadow-lg text-sm"
+        >
+          {notification}
+        </motion.div>
+      )}
+
       {/* Header */}
       <motion.div variants={itemVariants}>
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -337,18 +373,36 @@ export default function SettingsPage() {
       <motion.div variants={itemVariants} className="card p-5">
         <h2 className="text-lg font-semibold mb-4">Account & Data</h2>
         <div className="space-y-3">
-          <button className="w-full p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left text-sm font-medium">
+          <button 
+            onClick={handleExportData}
+            className="w-full p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left text-sm font-medium flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" />
             Export Portfolio Data
           </button>
-          <button className="w-full p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left text-sm font-medium">
+          <button 
+            onClick={handleClearCache}
+            className="w-full p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left text-sm font-medium flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
             Clear Cache & Cookies
           </button>
-          <button className="w-full p-3 rounded-lg bg-danger-600/20 hover:bg-danger-600/30 border border-danger-600/30 transition text-left text-sm font-medium text-danger-500">
+          <button 
+            onClick={handleResetSettings}
+            className="w-full p-3 rounded-lg bg-danger-600/20 hover:bg-danger-600/30 border border-danger-600/30 transition text-left text-sm font-medium text-danger-500 flex items-center gap-2"
+          >
+            <Sliders className="w-4 h-4" />
             Reset All Settings to Default
           </button>
-          <button className="w-full p-3 rounded-lg bg-danger-600/20 hover:bg-danger-600/30 border border-danger-600/30 transition text-left text-sm font-medium text-danger-500">
-            Delete Account & Data
-          </button>
+          {user && (
+            <button 
+              onClick={handleDeleteAccount}
+              className="w-full p-3 rounded-lg bg-danger-600/20 hover:bg-danger-600/30 border border-danger-600/30 transition text-left text-sm font-medium text-danger-500 flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account & Data
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -358,33 +412,119 @@ export default function SettingsPage() {
           <HelpCircle className="h-5 w-5 text-accent-400" />
           <h2 className="text-lg font-semibold">Help & Support</h2>
         </div>
+        
+        {/* Support Contact Info */}
+        <div className="mb-6 p-4 rounded-lg bg-obsidian-800/30 border border-accent-600/20">
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <Mail className="w-5 h-5 text-accent-400 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <div className="text-sm font-semibold">Email Support</div>
+                <div className="text-xs text-neutral-400 mt-1">{SUPPORT_EMAIL}</div>
+                <button
+                  onClick={copySupportEmail}
+                  className="text-xs text-accent-400 hover:text-accent-300 mt-1 underline"
+                >
+                  Copy email
+                </button>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <MessageSquare className="w-5 h-5 text-success-400 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <div className="text-sm font-semibold">Support Hours</div>
+                <div className="text-xs text-neutral-400 mt-1">{SUPPORT_HOURS}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Support Options */}
         <div className="grid gap-3">
-          <button className="p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left">
-            <div className="text-sm font-semibold">Documentation</div>
-            <div className="text-xs muted mt-1">Learn how to use CryptoTrack</div>
+          <button 
+            onClick={handleContactSupport}
+            className="p-4 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Mail className="w-4 h-4 text-accent-400" />
+              <div>
+                <div className="text-sm font-semibold">Contact Support</div>
+                <div className="text-xs muted mt-0.5">Email our support team for assistance</div>
+              </div>
+            </div>
           </button>
-          <button className="p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left">
-            <div className="text-sm font-semibold">API Reference</div>
-            <div className="text-xs muted mt-1">For developers and integrations</div>
+          <button 
+            onClick={handleReportBug}
+            className="p-4 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left"
+          >
+            <div className="flex items-center gap-2">
+              <Bug className="w-4 h-4 text-danger-500" />
+              <div>
+                <div className="text-sm font-semibold">Report a Bug</div>
+                <div className="text-xs muted mt-0.5">Help us improve by reporting issues</div>
+              </div>
+            </div>
           </button>
-          <button className="p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left">
-            <div className="text-sm font-semibold">Report a Bug</div>
-            <div className="text-xs muted mt-1">Help us improve the platform</div>
-          </button>
-          <button className="p-3 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left">
-            <div className="text-sm font-semibold">Contact Support</div>
-            <div className="text-xs muted mt-1">Get help from our team</div>
-          </button>
+          <a 
+            href="https://github.com/cryptotrack/docs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left"
+          >
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-4 h-4 text-success-400" />
+              <div>
+                <div className="text-sm font-semibold">Documentation</div>
+                <div className="text-xs muted mt-0.5">Learn how to use CryptoTrack</div>
+              </div>
+            </div>
+          </a>
+          <a 
+            href="https://github.com/cryptotrack"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-4 rounded-lg bg-obsidian-800/50 hover:bg-obsidian-800 transition text-left"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-accent-500" />
+              <div>
+                <div className="text-sm font-semibold">GitHub Repository</div>
+                <div className="text-xs muted mt-0.5">View source code and contribute</div>
+              </div>
+            </div>
+          </a>
+        </div>
+
+        {/* FAQ Section */}
+        <div className="mt-6 pt-6 border-t border-obsidian-700">
+          <div className="text-sm font-semibold mb-3">Frequently Asked Questions</div>
+          <div className="space-y-2 text-xs">
+            <div className="p-2 rounded bg-obsidian-800/20">
+              <div className="font-medium text-accent-300">How do I reset my password?</div>
+              <div className="text-neutral-400 mt-1">Go to the Login page and click "Forgot password?" to reset your password.</div>
+            </div>
+            <div className="p-2 rounded bg-obsidian-800/20">
+              <div className="font-medium text-accent-300">Is my data secure?</div>
+              <div className="text-neutral-400 mt-1">Your data is stored locally in your browser. We use bcrypt hashing for password security.</div>
+            </div>
+            <div className="p-2 rounded bg-obsidian-800/20">
+              <div className="font-medium text-accent-300">Can I export my portfolio?</div>
+              <div className="text-neutral-400 mt-1">Yes! Use the "Export Portfolio Data" button in the Account & Data section above.</div>
+            </div>
+          </div>
         </div>
       </motion.div>
 
       {/* Version Info */}
       <motion.div variants={itemVariants} className="card p-4 text-center">
         <div className="text-sm muted">
-          CryptoTrack v1.0.0 • Last updated December 17, 2025
+          CryptoTrack v1.0.0 • Last updated December 18, 2025
         </div>
         <div className="text-xs muted mt-2">
           © 2025 CryptoTrack. All rights reserved.
+        </div>
+        <div className="text-xs text-accent-400 mt-3">
+          Support: {SUPPORT_EMAIL}
         </div>
       </motion.div>
     </motion.div>

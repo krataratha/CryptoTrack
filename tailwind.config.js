@@ -43,6 +43,9 @@ export default {
       boxShadow: {
         'obsidian': '0 10px 30px rgba(0,0,0,0.35)',
       },
+      zIndex: {
+        '9999': '9999',
+      },
     },
   },
   plugins: [],

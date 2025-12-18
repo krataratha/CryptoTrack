@@ -1,13 +1,17 @@
 import { useAuth } from '../context/AuthContext';
 import { getUserTransactions } from '../services/transactions';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useCurrency } from '../context/CurrencyContext';
 import { formatCurrency } from '../utils/currency';
+import SessionSyncModal from './SessionSyncModal';
+import { Share2 } from 'lucide-react';
 
 export default function Profile() {
   const { user, logout } = useAuth();
   const { currency, convert } = useCurrency();
+  const [showSyncModal, setShowSyncModal] = useState(false);
   const txs = useMemo(() => (user ? getUserTransactions(user.username) : []), [user]);
+  
   if (!user) {
     return (
       <div className="card p-6 max-w-md">
@@ -16,6 +20,7 @@ export default function Profile() {
       </div>
     );
   }
+  
   return (
     <div className="space-y-4">
       <div className="card p-6 max-w-md">
@@ -23,10 +28,29 @@ export default function Profile() {
         <div className="space-y-2 text-sm">
           <div><span className="muted">Username:</span> <span className="font-semibold">{user.username}</span></div>
         </div>
-        <div className="mt-4">
-          <button onClick={logout} className="rounded-lg px-3 py-2 bg-danger-600/20 border border-danger-600/30 text-danger-400 text-sm">Logout</button>
+        <div className="mt-4 flex gap-2">
+          <button 
+            onClick={() => setShowSyncModal(true)}
+            className="flex-1 rounded-lg px-3 py-2 bg-accent-600/20 border border-accent-600/30 text-accent-300 text-sm hover:bg-accent-600/30 transition flex items-center justify-center gap-2"
+          >
+            <Share2 className="w-4 h-4" />
+            Sync Login
+          </button>
+          <button 
+            onClick={logout}
+            className="flex-1 rounded-lg px-3 py-2 bg-danger-600/20 border border-danger-600/30 text-danger-400 text-sm hover:bg-danger-600/30 transition"
+          >
+            Logout
+          </button>
         </div>
       </div>
+
+      <SessionSyncModal 
+        isOpen={showSyncModal}
+        onClose={() => setShowSyncModal(false)}
+        username={user.username}
+        profilePhoto={user.profilePhoto}
+      />
 
       <div className="card p-6">
         <h3 className="text-lg font-semibold mb-3">Transactions</h3>
